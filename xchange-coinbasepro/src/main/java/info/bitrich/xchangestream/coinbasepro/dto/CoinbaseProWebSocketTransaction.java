@@ -288,6 +288,18 @@ public class CoinbaseProWebSocketTransaction {
 		return profileId;
     }
 
+    public String[][] getBids() {
+        return bids;
+    }
+
+    public String[][] getAsks() {
+        return asks;
+    }
+
+    public String[][] getChanges() {
+        return changes;
+    }
+
     @Override
     public String toString() {
         final StringBuffer sb = new StringBuffer("CoinbaseProWebSocketTransaction{");
