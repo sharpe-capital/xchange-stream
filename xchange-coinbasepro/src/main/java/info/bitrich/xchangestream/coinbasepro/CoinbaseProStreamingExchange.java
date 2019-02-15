@@ -1,16 +1,15 @@
 package info.bitrich.xchangestream.coinbasepro;
 
-import org.knowm.xchange.ExchangeSpecification;
-import org.knowm.xchange.coinbasepro.CoinbaseProExchange;
-import org.knowm.xchange.coinbasepro.dto.account.CoinbaseProWebsocketAuthData;
-import org.knowm.xchange.coinbasepro.service.CoinbaseProAccountServiceRaw;
-
 import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.service.netty.WebSocketClientHandler;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
+import org.knowm.xchange.ExchangeSpecification;
+import org.knowm.xchange.coinbasepro.CoinbaseProExchange;
+import org.knowm.xchange.coinbasepro.dto.account.CoinbaseProWebsocketAuthData;
+import org.knowm.xchange.coinbasepro.service.CoinbaseProAccountServiceRaw;
 
 /**
  * CoinbasePro Streaming Exchange. Connects to live WebSocket feed.
@@ -37,10 +36,18 @@ public class CoinbaseProStreamingExchange extends CoinbaseProExchange implements
         String apiUri = exchangeSpecification.getExchangeSpecificParametersItem("Use_Sandbox").equals(true)
             ? SANDBOX_API_URI
             : API_URI;
-        this.streamingService = new CoinbaseProStreamingService(getApiUri(), () -> authData(exchangeSpec));
-        this.streamingMarketDataService = new CoinbaseProStreamingMarketDataService(streamingService);
+        this.streamingService = buildStreamingService();
+        this.streamingMarketDataService = buildStreamingMarketDataService();
         streamingService.subscribeMultipleCurrencyPairs(args);
         return streamingService.connect();
+    }
+
+    protected CoinbaseProStreamingService buildStreamingService() {
+        return new CoinbaseProStreamingService(getApiUri(), () -> authData(getExchangeSpecification()));
+    }
+
+    protected CoinbaseProStreamingMarketDataService buildStreamingMarketDataService() {
+        return new CoinbaseProStreamingMarketDataService(streamingService);
     }
 
     protected String getApiUri() {
@@ -109,4 +116,8 @@ public class CoinbaseProStreamingExchange extends CoinbaseProExchange implements
 
     @Override
     public void useCompressedMessages(boolean compressedMessages) { streamingService.useCompressedMessages(compressedMessages); }
+
+    protected CoinbaseProStreamingService getStreamingService() {
+        return streamingService;
+    }
 }
