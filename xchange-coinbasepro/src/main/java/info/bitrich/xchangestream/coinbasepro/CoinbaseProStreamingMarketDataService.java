@@ -1,18 +1,10 @@
 package info.bitrich.xchangestream.coinbasepro;
 
-import static io.netty.util.internal.StringUtil.isNullOrEmpty;
-import static org.knowm.xchange.coinbasepro.CoinbaseProAdapters.adaptOrderBook;
-import static org.knowm.xchange.coinbasepro.CoinbaseProAdapters.adaptTicker;
-import static org.knowm.xchange.coinbasepro.CoinbaseProAdapters.adaptTradeHistory;
-import static org.knowm.xchange.coinbasepro.CoinbaseProAdapters.adaptTrades;
-
-import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import info.bitrich.xchangestream.coinbasepro.dto.CoinbaseProWebSocketTransaction;
+import info.bitrich.xchangestream.core.StreamingMarketDataService;
+import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
+import io.reactivex.Observable;
 import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProProductBook;
 import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProProductTicker;
 import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProTrade;
@@ -23,12 +15,11 @@ import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.dto.marketdata.Trades;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.util.*;
 
-import info.bitrich.xchangestream.coinbasepro.dto.CoinbaseProWebSocketTransaction;
-import info.bitrich.xchangestream.core.StreamingMarketDataService;
-import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
-import io.reactivex.Observable;
+import static io.netty.util.internal.StringUtil.isNullOrEmpty;
+import static org.knowm.xchange.coinbasepro.CoinbaseProAdapters.*;
 
 /**
  * Created by luca on 4/3/17.
@@ -39,7 +30,7 @@ public class CoinbaseProStreamingMarketDataService implements StreamingMarketDat
     private final Map<CurrencyPair, SortedMap<BigDecimal, String>> bids = new HashMap<>();
     private final Map<CurrencyPair, SortedMap<BigDecimal, String>> asks = new HashMap<>();
 
-    CoinbaseProStreamingMarketDataService(CoinbaseProStreamingService service) {
+    public CoinbaseProStreamingMarketDataService(CoinbaseProStreamingService service) {
         this.service = service;
     }
 
@@ -71,6 +62,7 @@ public class CoinbaseProStreamingMarketDataService implements StreamingMarketDat
                 .filter(message -> !isNullOrEmpty(message.getType()) &&
                         (message.getType().equals("snapshot") || message.getType().equals("l2update")) &&
                         message.getProductId().equals(channelName))
+                .doOnNext(this::doWithRawOrderBookTransaction)
                 .map(s -> {
                     if (s.getType().equals("snapshot")) {
                         bids.put(currencyPair, new TreeMap<>(java.util.Collections.reverseOrder()));
@@ -80,6 +72,10 @@ public class CoinbaseProStreamingMarketDataService implements StreamingMarketDat
                     CoinbaseProProductBook productBook = s.toCoinbaseProProductBook(bids.get(currencyPair), asks.get(currencyPair), maxDepth);
                     return adaptOrderBook(productBook, currencyPair);
                 });
+    }
+
+    protected void doWithRawOrderBookTransaction(CoinbaseProWebSocketTransaction transaction) {
+        // NO-OP: empty default implementation
     }
 
     /**
@@ -130,7 +126,12 @@ public class CoinbaseProStreamingMarketDataService implements StreamingMarketDat
         return subscribedChannel
                 .filter(message -> !isNullOrEmpty(message.getType()) && message.getType().equals("ticker") &&
                         message.getProductId().equals(channelName))
+                .doOnNext(this::doWithRawTickerTransaction)
                 .map(s -> adaptTicker(s.toCoinbaseProProductTicker(), s.toCoinbaseProProductStats(), currencyPair));
+    }
+
+    protected void doWithRawTickerTransaction(CoinbaseProWebSocketTransaction transaction) {
+        // NO-OP: empty default implementation
     }
 
     @Override
@@ -148,6 +149,7 @@ public class CoinbaseProStreamingMarketDataService implements StreamingMarketDat
         return subscribedChannel
                 .filter(message -> !isNullOrEmpty(message.getType()) && message.getType().equals("match") &&
                         message.getProductId().equals(channelName))
+                .doOnNext(this::doWithRawTradeTransaction)
                 .map(s -> {
                             Trades adaptedTrades = null;
                             if ( s.getUserId() != null )
@@ -157,5 +159,9 @@ public class CoinbaseProStreamingMarketDataService implements StreamingMarketDat
                             return adaptedTrades.getTrades().get(0);
                         }
                 );
+    }
+
+    protected void doWithRawTradeTransaction(CoinbaseProWebSocketTransaction transaction) {
+        // NO-OP: empty default implementation
     }
 }

@@ -28,7 +28,11 @@ public class BitmexStreamingExchange extends BitmexExchange implements Streaming
     @Override
     protected void initServices() {
         super.initServices();
-        streamingMarketDataService = new BitmexStreamingMarketDataService(streamingService);
+        streamingMarketDataService = buildStreamingMarketDataService();
+    }
+
+    protected BitmexStreamingMarketDataService buildStreamingMarketDataService() {
+        return new BitmexStreamingMarketDataService(streamingService);
     }
 
     @Override
@@ -65,4 +69,8 @@ public class BitmexStreamingExchange extends BitmexExchange implements Streaming
 
     @Override
     public void useCompressedMessages(boolean compressedMessages) { streamingService.useCompressedMessages(compressedMessages); }
+
+    protected BitmexStreamingService getStreamingService() {
+        return streamingService;
+    }
 }

@@ -2,6 +2,8 @@ package info.bitrich.xchangestream.bitmex.dto;
 
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.trade.LimitOrder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -13,6 +15,8 @@ import static info.bitrich.xchangestream.bitmex.dto.BitmexLimitOrder.BID_SIDE;
  * Created by Lukas Zaoralek on 13.11.17.
  */
 public class BitmexOrderbook {
+    private static final Logger LOG = LoggerFactory.getLogger(BitmexOrderbook.class);
+
     private SortedMap<BigDecimal, BitmexLimitOrder> asks;
     private SortedMap<BigDecimal, BitmexLimitOrder> bids;
 
@@ -22,8 +26,8 @@ public class BitmexOrderbook {
     public BitmexOrderbook() {
         this.askIds = new HashMap<>();
         this.bidIds = new HashMap<>();
-        this.asks = new TreeMap<>();
-        this.bids = new TreeMap<>(java.util.Collections.reverseOrder());
+        this.asks = Collections.synchronizedSortedMap(new TreeMap<>());
+        this.bids = Collections.synchronizedSortedMap(new TreeMap<>(java.util.Collections.reverseOrder()));
     }
 
     public BitmexOrderbook(BitmexLimitOrder[] levels) {
@@ -57,13 +61,20 @@ public class BitmexOrderbook {
             boolean shouldDelete = action.equals("delete");
             String id = level.getId();
             BigDecimal price = orderBookSideIds.get(id);
-            orderBookSide.remove(price);
-            orderBookSideIds.remove(id);
-            if (!shouldDelete) {
-                BitmexLimitOrder modifiedLevel = new BitmexLimitOrder(level.getSymbol(), level.getId(), level.getSide(), price,
-                        level.getSize()); // Original level doesn't have price! see bitmex doc
-                orderBookSide.put(price, modifiedLevel);
-                orderBookSideIds.put(id, price);
+
+            if (price != null) {
+                orderBookSide.remove(price);
+                orderBookSideIds.remove(id);
+
+                if (!shouldDelete) {
+                    BitmexLimitOrder modifiedLevel = new BitmexLimitOrder(level.getSymbol(), level.getId(), level.getSide(), price,
+                            level.getSize()); // Original level doesn't have price! see bitmex doc
+                    orderBookSide.put(price, modifiedLevel);
+                    orderBookSideIds.put(id, price);
+                }
+            }
+            else {
+                LOG.warn("Could not update orderBookSide/orderBookSideIds as price was null, couldn't find id {}", id);
             }
         }
     }
@@ -86,6 +97,10 @@ public class BitmexOrderbook {
 
         List<LimitOrder> limitOrders = new ArrayList<>(levels.length);
         for (BitmexLimitOrder level : levels) {
+            if (level == null) {
+                LOG.warn("Found null level on levels array!!");
+                continue;
+            }
             LimitOrder limitOrder = level.toLimitOrder();
             limitOrders.add(limitOrder);
         }

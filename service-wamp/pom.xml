@@ -3,7 +3,7 @@
     <parent>
         <artifactId>xchange-stream-parent</artifactId>
         <groupId>info.bitrich.xchange-stream</groupId>
-        <version>4.3.14-SNAPSHOT</version>
+        <version>4.3.16-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -51,7 +51,7 @@
         <dependency>
             <groupId>com.github.akarnokd</groupId>
             <artifactId>rxjava2-interop</artifactId>
-            <version>0.8.3</version>
+            <version>0.13.5</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.reactivex.rxjava2</groupId>

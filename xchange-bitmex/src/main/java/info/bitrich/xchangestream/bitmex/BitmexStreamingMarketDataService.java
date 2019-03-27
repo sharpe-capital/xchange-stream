@@ -1,9 +1,6 @@
 package info.bitrich.xchangestream.bitmex;
 
-import info.bitrich.xchangestream.bitmex.dto.BitmexLimitOrder;
-import info.bitrich.xchangestream.bitmex.dto.BitmexOrderbook;
-import info.bitrich.xchangestream.bitmex.dto.BitmexTicker;
-import info.bitrich.xchangestream.bitmex.dto.BitmexTrade;
+import info.bitrich.xchangestream.bitmex.dto.*;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import io.reactivex.Observable;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -37,24 +34,30 @@ public class BitmexStreamingMarketDataService implements StreamingMarketDataServ
         String instrument = currencyPair.base.toString() + currencyPair.counter.toString();
         String channelName = String.format("orderBookL2:%s", instrument);
 
-        return streamingService.subscribeBitmexChannel(channelName).map(s -> {
-            BitmexOrderbook orderbook;
-            String action = s.getAction();
-            if (action.equals("partial")) {
-                orderbook = s.toBitmexOrderbook();
-                orderbooks.put(currencyPair, orderbook);
-            } else {
-                orderbook = orderbooks.get(currencyPair);
-                //ignore updates until first "partial"
-                if (orderbook == null) {
-                    return null;
-                }
-                BitmexLimitOrder[] levels = s.toBitmexOrderbookLevels();
-                orderbook.updateLevels(levels, action);
-            }
+        return streamingService.subscribeBitmexChannel(channelName)
+                .doOnNext(this::doWithRawOrderBookTransaction)
+                .map(s -> {
+                    BitmexOrderbook orderbook;
+                    String action = s.getAction();
+                    if (action.equals("partial")) {
+                        orderbook = s.toBitmexOrderbook();
+                        orderbooks.put(currencyPair, orderbook);
+                    } else {
+                        orderbook = orderbooks.get(currencyPair);
+                        //ignore updates until first "partial"
+                        if (orderbook == null) {
+                            return null;
+                        }
+                        BitmexLimitOrder[] levels = s.toBitmexOrderbookLevels();
+                        orderbook.updateLevels(levels, action);
+                    }
 
-            return orderbook.toOrderbook();
-        });
+                    return orderbook.toOrderbook();
+                });
+    }
+
+    protected void doWithRawOrderBookTransaction(BitmexWebSocketTransaction transaction) {
+        // NO-OP: empty default implementation
     }
 
     public Observable<BitmexTicker> getRawTicker(CurrencyPair currencyPair, Object... args) {
@@ -69,10 +72,16 @@ public class BitmexStreamingMarketDataService implements StreamingMarketDataServ
         String instrument = currencyPair.base.toString() + currencyPair.counter.toString();
         String channelName = String.format("quote:%s", instrument);
 
-        return streamingService.subscribeBitmexChannel(channelName).map(s -> {
-            BitmexTicker bitmexTicker = s.toBitmexTicker();
-            return bitmexTicker.toTicker();
-        });
+        return streamingService.subscribeBitmexChannel(channelName)
+                .doOnNext(this::doWithRawTickerTransaction)
+                .map(s -> {
+                    BitmexTicker bitmexTicker = s.toBitmexTicker();
+                    return bitmexTicker.toTicker();
+                });
+    }
+
+    protected void doWithRawTickerTransaction(BitmexWebSocketTransaction transaction) {
+        // NO-OP: empty default implementation
     }
 
     @Override
@@ -80,13 +89,19 @@ public class BitmexStreamingMarketDataService implements StreamingMarketDataServ
         String instrument = currencyPair.base.toString() + currencyPair.counter.toString();
         String channelName = String.format("trade:%s", instrument);
 
-        return streamingService.subscribeBitmexChannel(channelName).flatMapIterable(s -> {
-            BitmexTrade[] bitmexTrades = s.toBitmexTrades();
-            List<Trade> trades = new ArrayList<>(bitmexTrades.length);
-            for (BitmexTrade bitmexTrade : bitmexTrades) {
-                trades.add(bitmexTrade.toTrade());
-            }
-            return trades;
-        });
+        return streamingService.subscribeBitmexChannel(channelName)
+                .doOnNext(this::doWithRawTradesTransaction)
+                .flatMapIterable(s -> {
+                    BitmexTrade[] bitmexTrades = s.toBitmexTrades();
+                    List<Trade> trades = new ArrayList<>(bitmexTrades.length);
+                    for (BitmexTrade bitmexTrade : bitmexTrades) {
+                        trades.add(bitmexTrade.toTrade());
+                    }
+                    return trades;
+                });
+    }
+
+    protected void doWithRawTradesTransaction(BitmexWebSocketTransaction transaction) {
+        // NO-OP: empty default implementation
     }
 }
