@@ -32,10 +32,6 @@ public class CoinbaseProStreamingExchange extends CoinbaseProExchange implements
     public Completable connect(ProductSubscription... args) {
         if (args == null || args.length == 0)
             throw new UnsupportedOperationException("The ProductSubscription must be defined!");
-        ExchangeSpecification exchangeSpec = getExchangeSpecification();
-        String apiUri = exchangeSpecification.getExchangeSpecificParametersItem("Use_Sandbox").equals(true)
-            ? SANDBOX_API_URI
-            : API_URI;
         this.streamingService = buildStreamingService();
         this.streamingMarketDataService = buildStreamingMarketDataService();
         streamingService.subscribeMultipleCurrencyPairs(args);
@@ -51,7 +47,9 @@ public class CoinbaseProStreamingExchange extends CoinbaseProExchange implements
     }
 
     protected String getApiUri() {
-        return API_URI;
+        return exchangeSpecification.getExchangeSpecificParametersItem("Use_Sandbox").equals(true)
+                ? SANDBOX_API_URI
+                : API_URI;
     }
 
     private CoinbaseProWebsocketAuthData authData(ExchangeSpecification exchangeSpec) {
